@@ -40,5 +40,4 @@ The system aims to prioritize emergency requests, match suitable volunteers and 
 
 ## Project Status
 
-Phase 1 – Problem Understanding, Solution Design and System Architecture# ResQSync-Disaster-Response
-An intelligent platform for coordinating volunteers and relief resources during disaster response.
+Phase 1 – Problem Understanding, Solution Design and System Architecture.
