@@ -22,7 +22,7 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png"
 });
 
-const API = "http://127.0.0.1:8000";
+const API = "https://resqsync-disaster-response.onrender.com";
 
 function App() {
   // =====================================================
