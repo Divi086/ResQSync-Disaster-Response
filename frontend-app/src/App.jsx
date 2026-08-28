@@ -1343,7 +1343,7 @@ const navigateTo = (sectionId) => {
               volunteerRequests.map((request) => (
 
                 <div
-                  className="feature-card"
+                  className="request-card"
                   key={request.request_id}
                 >
 

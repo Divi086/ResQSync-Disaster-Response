@@ -1,7 +1,13 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = "mysql+pymysql://root:jbvd110846@localhost:3306/resqsync"
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://root:jbvd110846@localhost:3306/resqsync"
+)
 
 engine = create_engine(DATABASE_URL)
 
