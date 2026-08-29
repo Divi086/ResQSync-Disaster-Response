@@ -474,10 +474,48 @@ def update_volunteer_location(
 # VOLUNTEER - VIEW REQUESTS
 # =========================
 
+
+
 @app.get("/volunteer/requests")
 def get_volunteer_requests(
+    volunteer_id: int,
     db: Session = Depends(get_db)
 ):
+        
+
+    # =================================================
+    # GET VOLUNTEER
+    # =================================================
+
+    volunteer = (
+        db.query(Volunteer)
+        .filter(
+            Volunteer.volunteer_id == volunteer_id
+        )
+        .first()
+    )
+
+    if not volunteer:
+        raise HTTPException(
+            status_code=404,
+            detail="Volunteer not found"
+        )
+
+    # =================================================
+    # GET VOLUNTEER LOCATION
+    # =================================================
+
+    volunteer_location = (
+        db.query(Location)
+        .filter(
+            Location.location_id == volunteer.location_id
+        )
+        .first()
+    )
+
+    # =================================================
+    # GET PENDING REQUESTS
+    # =================================================
 
     requests = (
         db.query(EmergencyRequest)
@@ -492,6 +530,10 @@ def get_volunteer_requests(
 
     result = []
 
+    # =================================================
+    # CALCULATE DISTANCE
+    # =================================================
+
     for request in requests:
 
         location = (
@@ -502,25 +544,85 @@ def get_volunteer_requests(
             .first()
         )
 
+        distance_km = None
+
+        if volunteer_location and location:
+
+            lat1 = radians(float(volunteer_location.latitude))
+            lon1 = radians(float(volunteer_location.longitude))
+
+            lat2 = radians(float(location.latitude))
+            lon2 = radians(float(location.longitude))
+
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+
+            a = (
+                sin(dlat / 2) ** 2
+                +
+                cos(lat1)
+                * cos(lat2)
+                * sin(dlon / 2) ** 2
+            )
+
+            c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+            earth_radius_km = 6371
+
+            distance_km = round(
+                earth_radius_km * c,
+                2
+            )
+
         result.append({
+
             "request_id": request.request_id,
+
             "user_id": request.user_id,
+
             "location_id": request.location_id,
 
             "request_type": request.request_type,
+
             "description": request.description,
+
             "severity": request.severity,
+
             "people_affected": request.people_affected,
+
             "priority_score": request.priority_score,
+
             "status": request.status,
 
             # Affected person's location
-            "latitude": float(location.latitude) if location else None,
-            "longitude": float(location.longitude) if location else None,
+            "latitude":
+                float(location.latitude)
+                if location else None,
 
-            "address": location.address if location else None,
-            "city": location.city if location else None
+            "longitude":
+                float(location.longitude)
+                if location else None,
+
+            "address":
+                location.address
+                if location else None,
+
+            "city":
+                location.city
+                if location else None,
+
+            # Distance from volunteer
+            "distance_km":
+                distance_km
         })
+
+    # Sort nearest requests first
+    result.sort(
+        key=lambda x:
+            x["distance_km"]
+            if x["distance_km"] is not None
+            else float("inf")
+    )
 
     return result
 

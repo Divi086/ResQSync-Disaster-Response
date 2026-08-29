@@ -324,15 +324,20 @@ const navigateTo = (sectionId) => {
   // UPDATE VOLUNTEER LOCATION WHEN GPS CHANGES
   // =====================================================
 
-  useEffect(() => {
-    if (
-      user?.role === "VOLUNTEER" &&
-      user?.volunteer_id &&
-      location
-    ) {
-      updateVolunteerLocation();
-    }
-  }, [location, user]);
+ useEffect(() => {
+  if (
+    user?.role === "VOLUNTEER" &&
+    user?.volunteer_id &&
+    location
+  ) {
+    const updateAndLoad = async () => {
+      await updateVolunteerLocation();
+      await loadVolunteerRequests();
+    };
+
+    updateAndLoad();
+  }
+}, [location]);
 
   // =====================================================
   // LOAD AFFECTED PERSON REQUESTS
@@ -1294,7 +1299,7 @@ const navigateTo = (sectionId) => {
               className="primary-button"
               onClick={() => {
                 getCurrentLocation();
-                loadVolunteerRequests();
+                
               }}
             >
               Find Nearby Requests
