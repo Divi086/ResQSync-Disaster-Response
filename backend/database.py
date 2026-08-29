@@ -1,28 +1,20 @@
 import os
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 
-# =====================================================
-# DATABASE URL
-# =====================================================
+# Load variables from .env when running locally
+load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-
-# =====================================================
-# LOCAL DATABASE
-# =====================================================
-
 if not DATABASE_URL:
-    DATABASE_URL = "mysql+pymysql://root:jbvd110846@localhost:3306/resqsync"
+    raise RuntimeError("DATABASE_URL is not set")
 
 
-# =====================================================
-# AIVEN DATABASE
-# =====================================================
-
+# Convert Aiven mysql:// URL to PyMySQL format
 if DATABASE_URL.startswith("mysql://"):
     DATABASE_URL = DATABASE_URL.replace(
         "mysql://",
@@ -38,31 +30,13 @@ DATABASE_URL = DATABASE_URL.replace(
 )
 
 
-# =====================================================
-# DATABASE ENGINE
-# =====================================================
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={
+        "ssl": {}
+    }
+)
 
-if "localhost" in DATABASE_URL or "127.0.0.1" in DATABASE_URL:
-
-    # Local MySQL
-    engine = create_engine(
-        DATABASE_URL
-    )
-
-else:
-
-    # Aiven / Render
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={
-            "ssl": {}
-        }
-    )
-
-
-# =====================================================
-# SESSION
-# =====================================================
 
 SessionLocal = sessionmaker(
     autocommit=False,

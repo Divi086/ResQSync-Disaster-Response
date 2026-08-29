@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from math import radians, sin, cos, sqrt, atan2
 
 from database import SessionLocal
@@ -611,15 +612,22 @@ def get_volunteer_requests(
     # =================================================
 
     requests = (
-        db.query(EmergencyRequest)
-        .filter(
-            EmergencyRequest.status == "PENDING"
-        )
-        .order_by(
-            EmergencyRequest.priority_score.desc()
-        )
-        .all()
+    db.query(EmergencyRequest)
+    .outerjoin(
+        Assignment,
+        Assignment.request_id == EmergencyRequest.request_id
     )
+    .filter(
+        or_(
+            EmergencyRequest.status == "PENDING",
+            Assignment.volunteer_id == volunteer_id
+        )
+    )
+    .order_by(
+        EmergencyRequest.priority_score.desc()
+    )
+    .all()
+)
 
     result = []
 
