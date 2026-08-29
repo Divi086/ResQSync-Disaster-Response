@@ -219,20 +219,14 @@ def create_request(
     # =================================================
 
     new_location = Location(
-
-        latitude=request.latitude,
-
-        longitude=request.longitude,
-
-        city="GPS Detected",
-
-        address="Current GPS Location"
+         latitude=request.latitude,
+         longitude=request.longitude,
+         city="GPS Detected",
+         address="Current GPS Location"
     )
 
     db.add(new_location)
-
     db.commit()
-
     db.refresh(new_location)
 
     # =================================================
@@ -240,12 +234,9 @@ def create_request(
     # =================================================
 
     score, priority = calculate_priority(
-
-        request.severity,
-
-        request.people_affected,
-
-        request.request_type
+         request.severity,
+         request.people_affected,
+         request.request_type
     )
 
     # =================================================
@@ -253,27 +244,116 @@ def create_request(
     # =================================================
 
     new_request = EmergencyRequest(
-
-        user_id=request.user_id,
-
-        location_id=new_location.location_id,
-
-        request_type=request.request_type,
-
-        description=request.description,
-
-        severity=request.severity,
-
-        people_affected=request.people_affected,
-
-        priority_score=score
+         user_id=request.user_id,
+         location_id=new_location.location_id,
+         request_type=request.request_type,
+         description=request.description,
+         severity=request.severity,
+         people_affected=request.people_affected,
+         priority_score=score
     )
 
     db.add(new_request)
-
     db.commit()
-
     db.refresh(new_request)
+
+    # =================================================
+    # FIND NEAREST AVAILABLE VOLUNTEER
+    # =================================================
+
+    volunteers = (
+        db.query(Volunteer)
+        .filter(
+            Volunteer.availability_status == "AVAILABLE"
+        )
+        .all()
+    )
+
+    nearest_volunteer = None
+    nearest_distance = float("inf")
+
+    for volunteer in volunteers:
+
+        print(
+    "CHECK VOLUNTEER:",
+    volunteer.volunteer_id,
+    volunteer.availability_status,
+    volunteer.location_id
+)
+
+        volunteer_location = (
+            db.query(Location)
+            .filter(
+                Location.location_id == volunteer.location_id
+            )
+            .first()
+        )
+
+        if not volunteer_location:
+            continue
+
+        # Affected person's coordinates
+        lat1 = radians(float(new_location.latitude))
+        lon1 = radians(float(new_location.longitude))
+
+        # Volunteer coordinates
+        lat2 = radians(float(volunteer_location.latitude))
+        lon2 = radians(float(volunteer_location.longitude))
+
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+
+        a = (
+            sin(dlat / 2) ** 2
+            +
+            cos(lat1)
+            * cos(lat2)
+            * sin(dlon / 2) ** 2
+        )
+
+        c = 2 * atan2(
+            sqrt(a),
+            sqrt(1 - a)
+        )
+
+        earth_radius_km = 6371
+
+        distance_km = (
+            earth_radius_km * c
+        )
+
+        if distance_km < nearest_distance:
+
+            nearest_distance = distance_km
+            nearest_volunteer = volunteer
+
+    # =================================================
+    # ASSIGN NEAREST VOLUNTEER
+    # =================================================
+
+    assignment = None
+
+    if nearest_volunteer:
+
+        assignment = Assignment(
+            request_id=new_request.request_id,
+            volunteer_id=nearest_volunteer.volunteer_id
+        )
+
+        db.add(assignment)
+
+        # Mark request as assigned
+        new_request.status = "ASSIGNED"
+
+        # Mark volunteer as busy
+        nearest_volunteer.availability_status = "BUSY"
+
+        db.commit()
+        db.refresh(assignment)
+
+    # =================================================
+    # RESPONSE
+    # =================================================
 
     return {
 
@@ -296,7 +376,20 @@ def create_request(
             score,
 
         "priority":
-            priority
+            priority,
+
+        "status":
+            new_request.status,
+
+        "assigned_volunteer_id":
+            nearest_volunteer.volunteer_id
+            if nearest_volunteer
+            else None,
+
+        "distance_km":
+            round(nearest_distance, 2)
+            if nearest_volunteer
+            else None
     }
 
 
@@ -630,9 +723,7 @@ def get_volunteer_requests(
 # =====================================================
 # VOLUNTEER - ACCEPT REQUEST
 # =====================================================
-# =========================
-# VOLUNTEER - ACCEPT REQUEST
-# =========================
+
 
 @app.post("/volunteer/accept/{request_id}")
 def accept_request(
