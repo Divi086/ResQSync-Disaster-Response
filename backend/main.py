@@ -258,142 +258,51 @@ def create_request(
     db.commit()
     db.refresh(new_request)
 
-    # =================================================
-    # FIND NEAREST AVAILABLE VOLUNTEER
-    # =================================================
+    
 
-    volunteers = (
-        db.query(Volunteer)
-        .filter(
-            Volunteer.availability_status == "AVAILABLE"
-        )
-        .all()
-    )
+ # =================================================
+# REQUEST REMAINS PENDING
+# =================================================
 
-    nearest_volunteer = None
-    nearest_distance = float("inf")
+    new_request.status = "PENDING"
 
-    for volunteer in volunteers:
+    db.commit()
 
-        print(
-    "CHECK VOLUNTEER:",
-    volunteer.volunteer_id,
-    volunteer.availability_status,
-    volunteer.location_id
-)
-
-        volunteer_location = (
-            db.query(Location)
-            .filter(
-                Location.location_id == volunteer.location_id
-            )
-            .first()
-        )
-
-        if not volunteer_location:
-            continue
-
-        # Affected person's coordinates
-        lat1 = radians(float(new_location.latitude))
-        lon1 = radians(float(new_location.longitude))
-
-        # Volunteer coordinates
-        lat2 = radians(float(volunteer_location.latitude))
-        lon2 = radians(float(volunteer_location.longitude))
-
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-
-        a = (
-            sin(dlat / 2) ** 2
-            +
-            cos(lat1)
-            * cos(lat2)
-            * sin(dlon / 2) ** 2
-        )
-
-        c = 2 * atan2(
-            sqrt(a),
-            sqrt(1 - a)
-        )
-
-        earth_radius_km = 6371
-
-        distance_km = (
-            earth_radius_km * c
-        )
-
-        if distance_km < nearest_distance:
-
-            nearest_distance = distance_km
-            nearest_volunteer = volunteer
-
-    # =================================================
-    # ASSIGN NEAREST VOLUNTEER
-    # =================================================
-
-    assignment = None
-
-    if nearest_volunteer:
-
-        assignment = Assignment(
-            request_id=new_request.request_id,
-            volunteer_id=nearest_volunteer.volunteer_id
-        )
-
-        db.add(assignment)
-
-        # Mark request as assigned
-        new_request.status = "ASSIGNED"
-
-        # Mark volunteer as busy
-        nearest_volunteer.availability_status = "BUSY"
-
-        db.commit()
-        db.refresh(assignment)
-
-    # =================================================
-    # RESPONSE
-    # =================================================
-
+# =================================================
+# RESPONSE
+# =================================================
     return {
 
-        "message":
-            "Emergency request created successfully",
+    "message":
+        "Emergency request created successfully",
 
-        "request_id":
-            new_request.request_id,
+    "request_id":
+        new_request.request_id,
 
-        "location_id":
-            new_location.location_id,
+    "location_id":
+        new_location.location_id,
 
-        "latitude":
-            float(new_location.latitude),
+    "latitude":
+        float(new_location.latitude),
 
-        "longitude":
-            float(new_location.longitude),
+    "longitude":
+        float(new_location.longitude),
 
-        "priority_score":
-            score,
+    "priority_score":
+        score,
 
-        "priority":
-            priority,
+    "priority":
+        priority,
 
-        "status":
-            new_request.status,
+    "status":
+        "PENDING",
 
-        "assigned_volunteer_id":
-            nearest_volunteer.volunteer_id
-            if nearest_volunteer
-            else None,
+    "assigned_volunteer_id":
+        None,
 
-        "distance_km":
-            round(nearest_distance, 2)
-            if nearest_volunteer
-            else None
-    }
-
-
+    "distance_km":
+        None
+}
 # =====================================================
 # GET MY EMERGENCY REQUESTS
 # =====================================================
@@ -404,22 +313,95 @@ def get_user_requests(
     db: Session = Depends(get_db)
 ):
 
-    requests = (
-
-        db.query(EmergencyRequest)
-
+     requests = (
+         db.query(EmergencyRequest)
         .filter(
             EmergencyRequest.user_id == user_id
         )
-
-        .order_by(
+         .order_by(
             EmergencyRequest.request_id.desc()
-        )
-
+         )
         .all()
     )
 
-    return requests
+     result = []
+
+     for request in requests:
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.request_id == request.request_id
+            )
+            .first()
+        )
+
+        volunteer = None
+        volunteer_user = None
+
+        if assignment:
+
+            volunteer = (
+                db.query(Volunteer)
+                .filter(
+                    Volunteer.volunteer_id ==
+                    assignment.volunteer_id
+                )
+                .first()
+            )
+
+            if volunteer:
+
+                volunteer_user = (
+                    db.query(User)
+                    .filter(
+                        User.user_id == volunteer.user_id
+                    )
+                    .first()
+                )
+
+        result.append({
+
+            "request_id": request.request_id,
+
+            "user_id": request.user_id,
+
+            "location_id": request.location_id,
+
+            "request_type": request.request_type,
+
+            "description": request.description,
+
+            "severity": request.severity,
+
+            "people_affected": request.people_affected,
+
+            "priority_score": request.priority_score,
+
+            "status": request.status,
+
+            "assigned_volunteer_id":
+                assignment.volunteer_id
+                if assignment
+                else None,
+
+            "volunteer_name":
+                volunteer_user.name
+                if volunteer_user
+                else None,
+
+            "volunteer_phone":
+                volunteer_user.phone
+                if volunteer_user
+                else None,
+
+            "volunteer_availability":
+                volunteer.availability_status
+                if volunteer
+                else None
+        })
+
+     return result
 
 
 # =====================================================
@@ -631,7 +613,7 @@ def get_volunteer_requests(
 
     result = []
 
-    # =================================================
+    # ===========@app.get("/volunteer/requests")======================================
     # CALCULATE DISTANCE
     # =================================================
 
@@ -644,6 +626,13 @@ def get_volunteer_requests(
             )
             .first()
         )
+        assignment = (
+    db.query(Assignment)
+    .filter(
+        Assignment.request_id == request.request_id
+    )
+    .first()
+)
 
         distance_km = None
 
@@ -694,6 +683,10 @@ def get_volunteer_requests(
             "priority_score": request.priority_score,
 
             "status": request.status,
+
+            "assigned_volunteer_id":
+                assignment.volunteer_id
+                if assignment else None,
 
             # Affected person's location
             "latitude":
@@ -794,6 +787,7 @@ def accept_request(
 
     # Update request
     emergency_request.status = "ASSIGNED"
+    emergency_request.assigned_volunteer_id = volunteer_id
 
     # Update volunteer
     volunteer.availability_status = "BUSY"
@@ -801,6 +795,85 @@ def accept_request(
     db.commit()
     db.refresh(assignment)
 
+    # =====================================================
+# COMPLETE EMERGENCY REQUEST
+# =====================================================
+
+@app.post("/volunteer/complete/{request_id}")
+def complete_request(
+    request_id: int,
+    volunteer_id: int,
+    db: Session = Depends(get_db)
+):
+
+    # Find emergency request
+    emergency_request = (
+        db.query(EmergencyRequest)
+        .filter(
+            EmergencyRequest.request_id == request_id
+        )
+        .first()
+    )
+
+    if not emergency_request:
+        raise HTTPException(
+            status_code=404,
+            detail="Emergency request not found"
+        )
+
+    # Check request status
+    if emergency_request.status != "ASSIGNED":
+        raise HTTPException(
+            status_code=400,
+            detail="This request is not currently assigned"
+        )
+
+    # Check assigned volunteer
+    assignment = (
+        db.query(Assignment)
+        .filter(
+            Assignment.request_id == request_id,
+            Assignment.volunteer_id == volunteer_id
+        )
+        .first()
+    )
+
+    if not assignment:
+        raise HTTPException(
+            status_code=403,
+            detail="This request is not assigned to this volunteer"
+        )
+
+    # Find volunteer
+    volunteer = (
+        db.query(Volunteer)
+        .filter(
+            Volunteer.volunteer_id == volunteer_id
+        )
+        .first()
+    )
+
+    if not volunteer:
+        raise HTTPException(
+            status_code=404,
+            detail="Volunteer not found"
+        )
+
+    # Mark request as completed
+    emergency_request.status = "COMPLETED"
+
+    # Make volunteer available again
+    volunteer.availability_status = "AVAILABLE"
+
+    db.commit()
+
+    return {
+        "message": "Emergency request completed successfully",
+        "request_id": request_id,
+        "volunteer_id": volunteer_id,
+        "status": "COMPLETED",
+        "volunteer_availability": "AVAILABLE"
+    }
     # =========================
     # GET AFFECTED PERSON LOCATION
     # =========================
@@ -818,17 +891,25 @@ def accept_request(
     # =========================
 
     return {
-        "message": "Request accepted successfully",
-        "request_id": request_id,
-        "volunteer_id": volunteer_id,
-        "assignment_id": assignment.assignment_id,
-        "status": "ASSIGNED",
+    "message": "Request accepted successfully",
+    "request_id": request_id,
 
-        "latitude": float(location.latitude) if location else None,
-        "longitude": float(location.longitude) if location else None,
-        "address": location.address if location else None,
-        "city": location.city if location else None
-    }
+    # Volunteer details
+    "volunteer_id": volunteer.volunteer_id,
+    "volunteer_name": volunteer.name,
+    "volunteer_phone": volunteer.phone,
+    "volunteer_availability": volunteer.availability_status,
+
+    # Assignment details
+    "assignment_id": assignment.assignment_id,
+    "status": "ASSIGNED",
+
+    # Affected person's location
+    "latitude": float(location.latitude) if location else None,
+    "longitude": float(location.longitude) if location else None,
+    "address": location.address if location else None,
+    "city": location.city if location else None
+}
 
 # =====================================================
 # GET ALL LOCATIONS

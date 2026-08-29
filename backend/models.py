@@ -80,15 +80,13 @@ class EmergencyRequest(Base):
     )
 
     status = Column(
-        Enum(
-            "PENDING",
-            "ASSIGNED",
-            "IN_PROGRESS",
-            "RESOLVED",
-            "CANCELLED"
-        ),
-        default="PENDING"
-    )
+    Enum(
+        "PENDING",
+        "ASSIGNED",
+        "COMPLETED"
+    ),
+    default="PENDING"
+)
 
     people_affected = Column(Integer, default=1)
 
