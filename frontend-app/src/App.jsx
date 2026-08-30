@@ -622,6 +622,53 @@ const navigateTo = (sectionId) => {
     );
   }
 };
+const completeRequest = async (requestId) => {
+  if (!user?.volunteer_id) {
+    setVolunteerMessage("Volunteer ID is not available.");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API}/volunteer/complete/${requestId}?volunteer_id=${user.volunteer_id}`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await response.json();
+
+    console.log(
+      "COMPLETE RESPONSE:",
+      JSON.stringify(data, null, 2)
+    );
+
+    if (!response.ok) {
+      setVolunteerMessage(
+        typeof data?.detail === "string"
+          ? data.detail
+          : "Unable to complete request."
+      );
+      return;
+    }
+
+    setVolunteerMessage(
+      `Request #${requestId} completed successfully!`
+    );
+
+    await loadVolunteerRequests();
+
+  } catch (error) {
+    console.error(
+      "COMPLETE REQUEST ERROR:",
+      error
+    );
+
+    setVolunteerMessage(
+      "Unable to connect to the ResQSync backend."
+    );
+  }
+};
 
   // =====================================================
   // LOGIN / SIGNUP SCREEN

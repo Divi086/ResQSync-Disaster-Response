@@ -799,10 +799,7 @@ def accept_request(
         "message": "Request accepted successfully",
         "request_id": emergency_request.request_id,
         "assigned_volunteer_id": volunteer.volunteer_id,
-        "latitude": emergency_request.latitude,
-        "longitude": emergency_request.longitude,
-        "address": emergency_request.address,
-        "city": emergency_request.city
+        
     }
 
     # =====================================================
