@@ -502,41 +502,48 @@ const navigateTo = (sectionId) => {
       );
     }
   };
+  const loadVolunteerRequests = async () => {
+  if (!user?.volunteer_id) {
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API}/volunteer/requests?volunteer_id=${user.volunteer_id}`
+    );
+
+    const data = await response.json();
+
+    console.log(
+      "VOLUNTEER REQUESTS:",
+      JSON.stringify(data, null, 2)
+    );
+
+    if (response.ok) {
+      setVolunteerRequests(data);
+      setVolunteerMessage("");
+    } else {
+      setVolunteerMessage(
+  typeof data?.detail === "string"
+    ? data.detail
+    : "Unable to load volunteer requests."
+    );
+    }
+
+  } catch (error) {
+    console.error(
+      "LOAD VOLUNTEER REQUESTS ERROR:",
+      error
+    );
+
+    setVolunteerMessage(
+      "Unable to connect to the ResQSync backend."
+    );
+  }
+};
 
   // =====================================================
   // LOAD VOLUNTEER REQUESTS
-  // =====================================================
-
-  const loadVolunteerRequests = async () => {
-    setVolunteerMessage("");
-
-    try {
-      const response = await fetch(
-        `${API}/volunteer/requests?volunteer_id=${user.volunteer_id}`
-      );
-
-      const data = await response.json();
-      
-
-      if (response.ok) {
-        setVolunteerRequests(data);
-      } else {
-        setVolunteerMessage(
-          data.detail ||
-            "Unable to load emergency requests."
-        );
-      }
-    } catch (error) {
-      console.error(error);
-
-      setVolunteerMessage(
-        "Unable to connect to the ResQSync backend."
-      );
-    }
-  };
-
-  // =====================================================
-  // ACCEPT REQUEST
   // =====================================================
 
   const acceptRequest = async (requestId) => {
@@ -547,8 +554,7 @@ const navigateTo = (sectionId) => {
 
   try {
     const response = await fetch(
-      `${API}/volunteer/accept/${requestId}` +
-        `?volunteer_id=${user.volunteer_id}`,
+      `${API}/volunteer/accept/${requestId}?volunteer_id=${user.volunteer_id}`,
       {
         method: "POST",
       }
@@ -556,15 +562,31 @@ const navigateTo = (sectionId) => {
 
     const data = await response.json();
 
-    console.log("ACCEPT RESPONSE:", JSON.stringify(data, null, 2));
+    console.log(
+      "ACCEPT RESPONSE:",
+      JSON.stringify(data, null, 2)
+    );
 
+    // Handle backend errors FIRST
     if (!response.ok) {
       setVolunteerMessage(
-        data.detail || "Unable to accept request."
+        data?.detail || "Unable to accept request."
       );
       return;
     }
 
+    // Make sure response contains data
+    if (!data) {
+      setVolunteerMessage(
+        `Request #${requestId} was accepted, but no location data was returned.`
+      );
+
+      // Still refresh requests
+      loadVolunteerRequests();
+      return;
+    }
+
+    // Check whether location exists
     if (
       data.latitude != null &&
       data.longitude != null
@@ -586,54 +608,14 @@ const navigateTo = (sectionId) => {
       );
     }
 
-    loadVolunteerRequests();
+    // Refresh request list
+    await loadVolunteerRequests();
 
   } catch (error) {
-    console.error(error);
-
-    setVolunteerMessage(
-      "Unable to connect to the ResQSync backend."
+    console.error(
+      "ACCEPT REQUEST ERROR:",
+      error
     );
-  }
-};
-const completeRequest = async (requestId) => {
-  if (!user?.volunteer_id) {
-    setVolunteerMessage("Volunteer ID is not available.");
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      `${API}/volunteer/complete/${requestId}` +
-        `?volunteer_id=${user.volunteer_id}`,
-      {
-        method: "POST",
-      }
-    );
-
-    const data = await response.json();
-
-    console.log(
-      "COMPLETE RESPONSE:",
-      JSON.stringify(data, null, 2)
-    );
-
-    if (!response.ok) {
-      setVolunteerMessage(
-        data.detail || "Unable to complete request."
-      );
-      return;
-    }
-
-    setVolunteerMessage(
-      `Request #${requestId} completed successfully! You are now available.`
-    );
-
-    // Refresh volunteer requests
-    loadVolunteerRequests();
-
-  } catch (error) {
-    console.error(error);
 
     setVolunteerMessage(
       "Unable to connect to the ResQSync backend."
@@ -1392,297 +1374,348 @@ const completeRequest = async (requestId) => {
         </section>
 
 
-        <section className="request-section">
+         <section className="request-section">
 
-          <div className="request-form-container">
+  <div className="volunteer-content">
 
-            <h2>
-              Nearby Emergency Requests
-            </h2>
+    {/* =================================
+        LEFT SIDE — REQUESTS
+        ================================= */}
 
-            <p>
-              Requests are ordered by distance from
-              your current location.
-            </p>
+    <div className="requests-column">
 
+      <h2>
+        Nearby Emergency Requests
+      </h2>
 
-            {volunteerMessage && (
-              <div className="message">
-                {volunteerMessage}
-              </div>
-            )}
-
-            {/* ================================
-    ASSIGNED REQUESTS
-================================ */}
-
-
-
-{volunteerRequests.filter(
-  (request) =>
-    request.status === "PENDING" &&
-    request.assigned_volunteer_id == null
-).length === 0 ? (
-
-  <p>
-    No nearby emergency requests available.
-  </p>
-
-) : (
-
-  volunteerRequests
-    .filter(
-      (request) =>
-        request.status === "PENDING" &&
-        request.assigned_volunteer_id == null
-    )
-    .map((request) => (
-
-      <div
-        className="request-card"
-        key={request.request_id}
-      >
-
-        <h3>
-          Request #{request.request_id}
-        </h3>
-
-        <p>
-          Type:{" "}
-          <strong>
-            {request.request_type}
-          </strong>
-        </p>
-
-        <p>
-          Description:{" "}
-          {request.description}
-        </p>
-
-        <p>
-          Severity:{" "}
-          <strong>
-            {request.severity}
-          </strong>
-        </p>
-
-        <p>
-          People Affected:{" "}
-          <strong>
-            {request.people_affected}
-          </strong>
-        </p>
-
-        <p>
-          Priority Score:{" "}
-          <strong>
-            {request.priority_score}
-          </strong>
-        </p>
-
-        <p>
-          Distance:{" "}
-          <strong>
-            {request.distance_km !== null &&
-            request.distance_km !== undefined
-              ? `${request.distance_km} km`
-              : "Location unavailable"}
-          </strong>
-        </p>
-
-        <p>
-          Status:{" "}
-          <strong>
-            {request.status}
-          </strong>
-        </p>
-
-        <button
-          className="primary-button"
-          onClick={() =>
-            acceptRequest(request.request_id)
-          }
-        >
-          Accept Request
-        </button>
-
-      </div>
-
-    ))
-)}
-{/* ============================= */}
-{/* MY ASSIGNED REQUESTS */}
-{/* ============================= */}
-
-{volunteerRequests
-  .filter(
-    (request) =>
-      request.status === "ASSIGNED" &&
-      request.assigned_volunteer_id == user.volunteer_id
-  )
-  .map((request) => (
-
-    <div
-      className="request-card"
-      key={request.request_id}
-    >
-
-      <h3>
-        My Assigned Request #{request.request_id}
-      </h3>
-
-      <p>
-        Type:{" "}
-        <strong>
-          {request.request_type}
-        </strong>
+      <p className="section-description">
+        Requests are ordered by distance from your current location.
       </p>
 
-      <p>
-        Description:{" "}
-        {request.description}
-      </p>
+      {volunteerMessage && (
+        <div className="message">
+          {volunteerMessage}
+        </div>
+      )}
 
-      <p>
-        People Affected:{" "}
-        <strong>
-          {request.people_affected}
-        </strong>
-      </p>
+      <div className="request-list">
 
-      <p>
-        Priority Score:{" "}
-        <strong>
-          {request.priority_score}
-        </strong>
-      </p>
+        {/* =================================
+            PENDING REQUESTS
+            ================================= */}
 
-      <p>
-        Status:{" "}
-        <strong>
-          {request.status}
-        </strong>
-      </p>
+        {volunteerRequests.filter(
+          (request) =>
+            request.status === "PENDING" &&
+            request.assigned_volunteer_id == null
+        ).length === 0 ? (
 
-      <button
-        className="primary-button"
-        onClick={() =>
-          completeRequest(request.request_id)
-        }
-      >
-        Mark Task as Completed
-      </button>
+          <p>
+            No nearby emergency requests available.
+          </p>
 
-    </div>
+        ) : (
 
-  ))}
+          volunteerRequests
+            .filter(
+              (request) =>
+                request.status === "PENDING" &&
+                request.assigned_volunteer_id == null
+            )
+            .map((request) => (
 
-            {/* =========================
-                AFFECTED PERSON MAP
-            ========================= */}
+              <div
+                className="request-card"
+                key={request.request_id}
+              >
 
-            {selectedLocation && (
-               <div id="affected-location" className="map-section">
+                <div className="request-card-top">
 
-                <h2>
-                  Affected Person Location
-                </h2>
+                  <span className="request-status">
+                    {request.status}
+                  </span>
 
-                <p>
-                  Emergency location for the accepted request.
-                </p>
-
-
-                <MapContainer
-                 center={[
-                 Number(selectedLocation.latitude),
-                 Number(selectedLocation.longitude)
-                 ]}
-                 zoom={15}
-                 scrollWheelZoom={true}
-                 style={{
-                 height: "400px",
-                 width: "100%",
-                 borderRadius: "12px"
-                 }}
-                >
-
-                  <TileLayer
-                    attribution='&copy; OpenStreetMap contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-
-
-                  <Marker
-                    position={[
-                     Number(selectedLocation.latitude),
-                     Number(selectedLocation.longitude)
-                    ]}
-                  >
-
-                    <Popup>
-
-                      <strong>
-                        Affected Person
-                      </strong>
-
-                      <br />
-
-                      {selectedLocation.address}
-
-                      <br />
-
-                      {selectedLocation.city}
-
-                    </Popup>
-
-                  </Marker>
-
-                </MapContainer>
-
-
-                <div className="location-details">
-
-                  <p>
-                    <strong>
-                      Latitude:
-                    </strong>{" "}
-                    {selectedLocation.latitude}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Longitude:
-                    </strong>{" "}
-                    {selectedLocation.longitude}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Address:
-                    </strong>{" "}
-                    {selectedLocation.address}
-                  </p>
-
-                  <p>
-                    <strong>
-                      City:
-                    </strong>{" "}
-                    {selectedLocation.city}
-                  </p>
+                  <span className="request-distance">
+                    {request.distance_km != null
+                      ? `${request.distance_km} km`
+                      : "N/A"}
+                  </span>
 
                 </div>
 
+                <h3>
+                  Request #{request.request_id}
+                </h3>
+
+                <div className="request-type">
+                  {request.request_type}
+                </div>
+
+                <p className="request-description">
+                  {request.description}
+                </p>
+
+                <div className="request-details-grid">
+
+                  <div>
+                    <span>Severity</span>
+                    <strong>
+                      {request.severity}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>People Affected</span>
+                    <strong>
+                      {request.people_affected}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Priority Score</span>
+                    <strong>
+                      {request.priority_score}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Status</span>
+                    <strong>
+                      {request.status}
+                    </strong>
+                  </div>
+
+                </div>
+
+                <button
+                  className="primary-button request-button"
+                  onClick={() =>
+                    acceptRequest(request.request_id)
+                  }
+                >
+                  Accept Request
+                </button>
+
               </div>
-            )}
+
+            ))
+        )}
+
+
+        {/* =================================
+            MY ASSIGNED REQUESTS
+            ================================= */}
+
+        {volunteerRequests
+          .filter(
+            (request) =>
+              request.status === "ASSIGNED" &&
+              request.assigned_volunteer_id == user.volunteer_id
+          )
+          .map((request) => (
+
+            <div
+              className="request-card assigned-card"
+              key={request.request_id}
+            >
+
+              <div className="request-card-top">
+
+                <span className="request-status assigned-status">
+                  ASSIGNED
+                </span>
+
+                <span className="request-distance">
+                  {request.distance_km != null
+                    ? `${request.distance_km} km`
+                    : "N/A"}
+                </span>
+
+              </div>
+
+              <h3>
+                My Assigned Request #{request.request_id}
+              </h3>
+
+              <div className="request-type">
+                {request.request_type}
+              </div>
+
+              <p className="request-description">
+                {request.description}
+              </p>
+
+              <div className="request-details-grid">
+
+                <div>
+                  <span>People Affected</span>
+                  <strong>
+                    {request.people_affected}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Priority Score</span>
+                  <strong>
+                    {request.priority_score}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Status</span>
+                  <strong>
+                    {request.status}
+                  </strong>
+                </div>
+
+              </div>
+
+              <button
+                className="primary-button request-button"
+                onClick={() =>
+                  completeRequest(request.request_id)
+                }
+              >
+                Mark Task as Completed
+              </button>
+
+            </div>
+
+          ))}
+
+      </div>
+
+    </div>
+
+
+    {/* =================================
+        RIGHT SIDE — MAP
+        ================================= */}
+
+    <div className="location-column">
+
+      <h2>
+        Affected Person Location
+      </h2>
+
+      <p className="section-description">
+        Emergency location for the accepted request.
+      </p>
+
+      {selectedLocation ? (
+
+        <div className="map-card">
+
+          <MapContainer
+            center={[
+              Number(selectedLocation.latitude),
+              Number(selectedLocation.longitude)
+            ]}
+            zoom={15}
+            scrollWheelZoom={true}
+            style={{
+              height: "280px",
+              width: "100%"
+            }}
+          >
+
+            <TileLayer
+              attribution="&copy; OpenStreetMap contributors"
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            <Marker
+              position={[
+                Number(selectedLocation.latitude),
+                Number(selectedLocation.longitude)
+              ]}
+            >
+
+              <Popup>
+
+                <strong>
+                  Affected Person
+                </strong>
+
+                <br />
+
+                {selectedLocation.address}
+
+                <br />
+
+                {selectedLocation.city}
+
+              </Popup>
+
+            </Marker>
+
+          </MapContainer>
+
+
+          <div className="location-details">
+
+            <p>
+              <strong>
+                Latitude
+              </strong>
+
+              <span>
+                {selectedLocation.latitude}
+              </span>
+            </p>
+
+            <p>
+              <strong>
+                Longitude
+              </strong>
+
+              <span>
+                {selectedLocation.longitude}
+              </span>
+            </p>
+
+            <p>
+              <strong>
+                Address
+              </strong>
+
+              <span>
+                {selectedLocation.address}
+              </span>
+            </p>
+
+            <p>
+              <strong>
+                City
+              </strong>
+
+              <span>
+                {selectedLocation.city}
+              </span>
+            </p>
 
           </div>
 
-        </section>
+        </div>
+
+      ) : (
+
+        <div className="no-location">
+          Accept a request to view its location.
+        </div>
+
+      )}
+
+    </div>
+
+  </div>
+
+</section>
+
+          
 
       </main>
-
-
+     
       <footer>
 
         <p>
