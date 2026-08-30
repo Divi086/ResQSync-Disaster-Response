@@ -175,6 +175,8 @@ const navigateTo = (sectionId) => {
       });
 
       const data = await response.json();
+      console.log("VOLUNTEER ID:", data.volunteer_id);
+      console.log("VOLUNTEER REQUESTS:", data); 
 
       if (!response.ok) {
         setAuthMessage(
@@ -584,6 +586,50 @@ const navigateTo = (sectionId) => {
       );
     }
 
+    loadVolunteerRequests();
+
+  } catch (error) {
+    console.error(error);
+
+    setVolunteerMessage(
+      "Unable to connect to the ResQSync backend."
+    );
+  }
+};
+const completeRequest = async (requestId) => {
+  if (!user?.volunteer_id) {
+    setVolunteerMessage("Volunteer ID is not available.");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API}/volunteer/complete/${requestId}` +
+        `?volunteer_id=${user.volunteer_id}`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await response.json();
+
+    console.log(
+      "COMPLETE RESPONSE:",
+      JSON.stringify(data, null, 2)
+    );
+
+    if (!response.ok) {
+      setVolunteerMessage(
+        data.detail || "Unable to complete request."
+      );
+      return;
+    }
+
+    setVolunteerMessage(
+      `Request #${requestId} completed successfully! You are now available.`
+    );
+
+    // Refresh volunteer requests
     loadVolunteerRequests();
 
   } catch (error) {
@@ -1019,6 +1065,36 @@ const navigateTo = (sectionId) => {
             {request.priority_score} / 100
           </strong>
         </div>
+        <div className="assignment-info">
+
+  {request.assigned_volunteer_id ? (
+    <>
+      <p>
+        🧑‍🚒 <strong>Volunteer:</strong>{" "}
+        {request.volunteer_name || "Volunteer"}
+      </p>
+
+      <p>
+        📞 <strong>Contact:</strong>{" "}
+        {request.volunteer_phone || "Not available"}
+      </p>
+
+      <p>
+        {request.volunteer_availability === "AVAILABLE"
+          ? "🟢"
+          : "🔴"}{" "}
+        <strong>Availability:</strong>{" "}
+        {request.volunteer_availability || "Busy"}
+      </p>
+    </>
+  ) : (
+    <p>
+      ⏳ <strong>Volunteer:</strong>{" "}
+      Waiting for a volunteer to accept
+    </p>
+  )}
+
+</div>
 
       </div>
 
@@ -1336,101 +1412,170 @@ const navigateTo = (sectionId) => {
               </div>
             )}
 
-
-            {volunteerRequests.length === 0 ? (
-
-              <p>
-                No pending emergency requests found.
-              </p>
-
-            ) : (
-
-              volunteerRequests.map((request) => (
-
-                <div
-                  className="request-card"
-                  key={request.request_id}
-                >
-
-                  <h3>
-                    Request #{request.request_id}
-                  </h3>
+            {/* ================================
+    ASSIGNED REQUESTS
+================================ */}
 
 
-                  <p>
-                    Type:{" "}
-                    <strong>
-                      {request.request_type}
-                    </strong>
-                  </p>
 
+{volunteerRequests.filter(
+  (request) =>
+    request.status === "PENDING" &&
+    request.assigned_volunteer_id == null
+).length === 0 ? (
 
-                  <p>
-                    Description:{" "}
-                    {request.description}
-                  </p>
+  <p>
+    No nearby emergency requests available.
+  </p>
 
+) : (
 
-                  <p>
-                    Severity:{" "}
-                    <strong>
-                      {request.severity}
-                    </strong>
-                  </p>
+  volunteerRequests
+    .filter(
+      (request) =>
+        request.status === "PENDING" &&
+        request.assigned_volunteer_id == null
+    )
+    .map((request) => (
 
+      <div
+        className="request-card"
+        key={request.request_id}
+      >
 
-                  <p>
-                    People Affected:{" "}
-                    <strong>
-                      {request.people_affected}
-                    </strong>
-                  </p>
+        <h3>
+          Request #{request.request_id}
+        </h3>
 
+        <p>
+          Type:{" "}
+          <strong>
+            {request.request_type}
+          </strong>
+        </p>
 
-                  <p>
-                    Priority Score:{" "}
-                    <strong>
-                      {request.priority_score}
-                    </strong>
-                  </p>
+        <p>
+          Description:{" "}
+          {request.description}
+        </p>
 
+        <p>
+          Severity:{" "}
+          <strong>
+            {request.severity}
+          </strong>
+        </p>
 
-                  <p>
-                    Distance:{" "}
-                    <strong>
-                      {request.distance_km !== null &&
-                      request.distance_km !== undefined
-                        ? `${request.distance_km} km`
-                        : "Location unavailable"}
-                    </strong>
-                  </p>
+        <p>
+          People Affected:{" "}
+          <strong>
+            {request.people_affected}
+          </strong>
+        </p>
 
+        <p>
+          Priority Score:{" "}
+          <strong>
+            {request.priority_score}
+          </strong>
+        </p>
 
-                  <p>
-                    Status:{" "}
-                    <strong>
-                      {request.status}
-                    </strong>
-                  </p>
+        <p>
+          Distance:{" "}
+          <strong>
+            {request.distance_km !== null &&
+            request.distance_km !== undefined
+              ? `${request.distance_km} km`
+              : "Location unavailable"}
+          </strong>
+        </p>
 
+        <p>
+          Status:{" "}
+          <strong>
+            {request.status}
+          </strong>
+        </p>
 
-                  <button
-                    className="primary-button"
-                    onClick={() =>
-                      acceptRequest(
-                        request.request_id
-                      )
-                    }
-                  >
-                    Accept Request
-                  </button>
+        <button
+          className="primary-button"
+          onClick={() =>
+            acceptRequest(request.request_id)
+          }
+        >
+          Accept Request
+        </button>
 
-                </div>
+      </div>
 
-              ))
+    ))
+)}
+{/* ============================= */}
+{/* MY ASSIGNED REQUESTS */}
+{/* ============================= */}
 
-            )}
+{volunteerRequests
+  .filter(
+    (request) =>
+      request.status === "ASSIGNED" &&
+      request.assigned_volunteer_id == user.volunteer_id
+  )
+  .map((request) => (
 
+    <div
+      className="request-card"
+      key={request.request_id}
+    >
+
+      <h3>
+        My Assigned Request #{request.request_id}
+      </h3>
+
+      <p>
+        Type:{" "}
+        <strong>
+          {request.request_type}
+        </strong>
+      </p>
+
+      <p>
+        Description:{" "}
+        {request.description}
+      </p>
+
+      <p>
+        People Affected:{" "}
+        <strong>
+          {request.people_affected}
+        </strong>
+      </p>
+
+      <p>
+        Priority Score:{" "}
+        <strong>
+          {request.priority_score}
+        </strong>
+      </p>
+
+      <p>
+        Status:{" "}
+        <strong>
+          {request.status}
+        </strong>
+      </p>
+
+      <button
+        className="primary-button"
+        onClick={() =>
+          completeRequest(request.request_id)
+        }
+      >
+        Mark Task as Completed
+      </button>
+
+    </div>
+
+  ))}
 
             {/* =========================
                 AFFECTED PERSON MAP
