@@ -72,6 +72,7 @@ const navigateTo = (sectionId) => {
   const [priority, setPriority] = useState(null);
   const [myRequests, setMyRequests] = useState([]);
   const [requestMessage, setRequestMessage] = useState("");
+  const [showSmsSimulator, setShowSmsSimulator] = useState(false);
 
   const [formData, setFormData] = useState({
     request_type: "WATER",
@@ -124,8 +125,9 @@ const navigateTo = (sectionId) => {
       setLocation(newLocation);
 
       setLocationMessage(
-        `📍 Current Location: ${newLocation.latitude.toFixed(6)}, ${newLocation.longitude.toFixed(6)}`
+        ` Current Location: ${newLocation.latitude.toFixed(6)}, ${newLocation.longitude.toFixed(6)}`
       );
+
 
       setLocationLoading(false);
     },
@@ -935,7 +937,7 @@ const completeRequest = async (requestId) => {
       setShowForm(true);
       setMessage("");
       setPriority(null);
-      getCurrentLocation();
+      
 
       setTimeout(() => {
         navigateTo("emergency-form");
@@ -1003,6 +1005,66 @@ const completeRequest = async (requestId) => {
                     ? "Detecting..."
                     : "Detect My Location"}
                 </button>
+
+                <button
+  className="secondary-button sms-button"
+  onClick={() => setShowSmsSimulator(true)}
+>
+   Offline SMS Simulation
+</button>
+{showSmsSimulator && (
+  <div className="sms-simulator">
+
+    <div className="sms-header">
+      <span className="sms-icon">📱</span>
+
+      <div>
+        <h3>Offline SMS Simulation</h3>
+        <p>
+          Simulating emergency communication without internet
+        </p>
+      </div>
+    </div>
+
+    <div className="sms-status">
+      <span className="status-dot"></span>
+      Internet connection unavailable
+    </div>
+
+    <div className="sms-message">
+
+      <strong>📨 Emergency SMS</strong>
+
+      <p>
+        SOS! Emergency assistance requested.
+      </p>
+
+      <p>
+        📍 Location:{" "}
+        {location
+          ? `${Number(location.latitude).toFixed(6)}, ${Number(location.longitude).toFixed(6)}`
+          : "Location not detected"}
+      </p>
+
+      <p>
+        🚨 Priority: HIGH
+      </p>
+
+    </div>
+
+    <div className="sms-delivery">
+      ✅ Simulated SMS delivered to nearby volunteers
+    </div>
+
+    <button
+      className="secondary-button"
+      onClick={() => setShowSmsSimulator(false)}
+    >
+      Close Simulation
+    </button>
+
+  </div>
+)}
 
               </div>
 
@@ -1099,7 +1161,7 @@ const completeRequest = async (requestId) => {
   {request.assigned_volunteer_id ? (
     <>
       <p>
-        🧑‍🚒 <strong>Volunteer:</strong>{" "}
+        🧑<strong>Volunteer:</strong>{" "}
         {request.volunteer_name || "Volunteer"}
       </p>
 
@@ -1151,7 +1213,7 @@ const completeRequest = async (requestId) => {
 
                 {location && (
                   <div className="message">
-                    📍 Current location detected
+                     Current location detected
                     <br />
                     Latitude:{" "}
                     {location.latitude.toFixed(6)}
