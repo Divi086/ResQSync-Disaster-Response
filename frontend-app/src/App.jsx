@@ -73,6 +73,17 @@ const navigateTo = (sectionId) => {
   const [myRequests, setMyRequests] = useState([]);
   const [requestMessage, setRequestMessage] = useState("");
   const [showSmsSimulator, setShowSmsSimulator] = useState(false);
+  const [showEventForm, setShowEventForm] = useState(false);
+  
+
+const [events, setEvents] = useState([]);
+
+const [eventForm, setEventForm] = useState({
+  name: "",
+  location: "",
+  description: "",
+  volunteers: "",
+});
 
   const [formData, setFormData] = useState({
     request_type: "WATER",
@@ -1404,31 +1415,10 @@ const completeRequest = async (requestId) => {
 
         <nav>
 
-  <button
-    type="button"
-    className="nav-button"
-    onClick={() => navigateTo("volunteer-dashboard")}
-  >
-    Dashboard
-  </button>
+ 
 
-  <button
-    type="button"
-    className="nav-button"
-    onClick={() => navigateTo("nearby-requests")}
-  >
-    Requests
-  </button>
+  
 
-  {selectedLocation && (
-    <button
-      type="button"
-      className="nav-button"
-      onClick={() => navigateTo("affected-location")}
-    >
-      Location
-    </button>
-  )}
 
   <span>
     Volunteer: {user.name}
@@ -1838,70 +1828,283 @@ const completeRequest = async (requestId) => {
 }
 
   // =====================================================
-  // NGO DASHBOARD
-  // =====================================================
+// NGO DASHBOARD
+// =====================================================
 
-  return (
-    <div className="app">
+return (
+  <div className="app">
 
-      <header className="header">
+    <header className="header">
 
-        <div className="logo">
-          ResQSync
-        </div>
+      <div className="logo">
+        ResQSync
+      </div>
 
-        <nav>
+      <nav>
 
-          <span>
-            NGO: {user.name}
-          </span>
+        <span>
+          NGO: {user.name}
+        </span>
+
+        <button
+          type="button"
+          className="nav-button"
+          onClick={logout}
+        >
+          Logout
+        </button>
+
+      </nav>
+
+    </header>
+
+    <main>
+
+      <section id="volunteer-dashboard" className="hero">
+
+        <div className="hero-content">
+
+          <h1>
+            NGO Dashboard
+          </h1>
+
+          <p>
+            Create events and coordinate volunteers
+            for disaster relief activities.
+          </p>
 
           <button
             type="button"
-            className="nav-button"
-            onClick={logout}
+            className="primary-button"
+            onClick={() => setShowEventForm(true)}
           >
-            Logout
+            Create Volunteer Event
           </button>
 
-        </nav>
+        </div>
 
-      </header>
+      </section>
 
-      <main>
+      {/* CREATE EVENT FORM */}
 
-        <section id="volunteer-dashboard" className="hero">
+      {showEventForm && (
+        <section className="request-section">
 
-          <div className="hero-content">
+          <div className="request-form-container">
 
-            <h1>
-              NGO Dashboard
-            </h1>
-
-            <p>
-              Create events and coordinate volunteers
-              for disaster relief activities.
-            </p>
-
-            <button className="primary-button">
+            <h2>
               Create Volunteer Event
+            </h2>
+
+            <label>
+              Event Name
+            </label>
+
+            <input
+              type="text"
+              id="eventName"
+              placeholder="Enter event name"
+            />
+
+            <label>
+              Location
+            </label>
+
+            <input
+              type="text"
+              id="eventLocation"
+              placeholder="Enter event location"
+            />
+
+            <label>
+              Description
+            </label>
+
+            <textarea
+              id="eventDescription"
+              placeholder="Describe the relief activity..."
+            />
+
+            <label>
+              Volunteers Needed
+            </label>
+
+            <input
+              type="number"
+              id="eventVolunteers"
+              min="1"
+              placeholder="Number of volunteers"
+            />
+
+            <button
+              type="button"
+              className="primary-button submit-button"
+              onClick={() => {
+
+                const name =
+                  document.getElementById("eventName").value;
+
+                const location =
+                  document.getElementById("eventLocation").value;
+
+                const description =
+                  document.getElementById("eventDescription").value;
+
+                const volunteers =
+                  document.getElementById("eventVolunteers").value;
+
+                if (
+                  !name ||
+                  !location ||
+                  !description ||
+                  !volunteers
+                ) {
+                  alert("Please fill all event details.");
+                  return;
+                }
+
+                const newEvent = {
+                  id: Date.now(),
+                  name: name,
+                  location: location,
+                  description: description,
+                  volunteers: volunteers
+                };
+
+                setEvents((prevEvents) => [
+                  ...prevEvents,
+                  newEvent
+                ]);
+
+                setShowEventForm(false);
+              }}
+            >
+              Create Event
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setShowEventForm(false)}
+            >
+              Cancel
             </button>
 
           </div>
 
         </section>
+      )}
 
-      </main>
+      {/* CREATED EVENTS */}
 
-      <footer>
-        <p>
-          ResQSync — Disaster Response Coordination Platform
-        </p>
-      </footer>
+      <section className="request-section">
 
-    </div>
-  );
+        <div className="request-form-container">
+
+          <h2>
+            Volunteer Events
+          </h2>
+
+          <p>
+            Relief activities created by your NGO.
+          </p>
+
+          {events.length === 0 ? (
+
+            <div className="no-location">
+              No volunteer events created yet.
+            </div>
+
+          ) : (
+
+            <div className="request-list">
+
+              {events.map((event) => (
+
+                <div
+                  className="request-card"
+                  key={event.id}
+                >
+
+                  <div className="request-card-header">
+
+                    <div>
+
+                      <span className="request-type">
+                        VOLUNTEER EVENT
+                      </span>
+
+                      <h3>
+                        {event.name}
+                      </h3>
+
+                    </div>
+
+                    <span className="status-badge status-pending">
+                      OPEN
+                    </span>
+
+                  </div>
+
+                  <div className="request-details">
+
+                    <div className="request-detail">
+
+                      <span>
+                        Location
+                      </span>
+
+                      <strong>
+                        📍 {event.location}
+                      </strong>
+
+                    </div>
+
+                    <div className="request-detail">
+
+                      <span>
+                        Volunteers Needed
+                      </span>
+
+                      <strong>
+                        👥 {event.volunteers}
+                      </strong>
+
+                    </div>
+
+                  </div>
+
+                  <p className="request-description">
+                    {event.description}
+                  </p>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          )}
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <footer>
+
+      <p>
+        ResQSync — Disaster Response Coordination Platform
+      </p>
+
+    </footer>
+
+  </div>
+);
 }
+
+
 
 export default App;
 
